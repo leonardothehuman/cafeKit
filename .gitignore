@@ -1,0 +1,9 @@
+.vs/
+.vscode/
+game/
+out/
+update/
+00050000101c3100/
+*.o
+*.exe
+*.app

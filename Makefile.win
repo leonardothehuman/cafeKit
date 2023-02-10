@@ -1,0 +1,45 @@
+# Project: cafeKit
+# Makefile created by Embarcadero Dev-C++ 6.3
+
+CPP      = g++.exe
+CC       = gcc.exe
+WINDRES  = windres.exe
+RES      = cafeKit_private.res
+OBJ      = cafekit.o aes.o sha1.o util.o linkedListNusBlobs.o $(RES)
+LINKOBJ  = cafekit.o aes.o sha1.o util.o linkedListNusBlobs.o $(RES)
+LIBS     = -L"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/x86_64-w64-mingw32/lib32" -static-libgcc -m32
+INCS     = -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/include" -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/lib/gcc/x86_64-w64-mingw32/9.2.0/include"
+CXXINCS  = -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/include" -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/lib/gcc/x86_64-w64-mingw32/9.2.0/include" -I"C:/Program Files (x86)/Embarcadero/Dev-Cpp/TDM-GCC-64/lib/gcc/x86_64-w64-mingw32/9.2.0/include/c++"
+BIN      = cafeKit.exe
+CXXFLAGS = $(CXXINCS) -m32
+CFLAGS   = $(INCS) -m32
+DEL      = C:\Program Files (x86)\Embarcadero\Dev-Cpp\DevCpp.exe INTERNAL_DEL
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before $(BIN) all-after
+
+clean: clean-custom
+	${DEL} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(LINKOBJ) -o $(BIN) $(LIBS)
+
+cafekit.o: cafekit.c
+	$(CC) -c cafekit.c -o cafekit.o $(CFLAGS)
+
+aes.o: aes.c
+	$(CC) -c aes.c -o aes.o $(CFLAGS)
+
+sha1.o: sha1.c
+	$(CC) -c sha1.c -o sha1.o $(CFLAGS)
+
+util.o: util.c
+	$(CC) -c util.c -o util.o $(CFLAGS)
+
+linkedListNusBlobs.o: linkedListNusBlobs.c
+	$(CC) -c linkedListNusBlobs.c -o linkedListNusBlobs.o $(CFLAGS)
+
+cafeKit_private.res: cafeKit_private.rc cafekit.rc
+	$(WINDRES) -i cafeKit_private.rc -F pe-i386 --input-format=rc -o cafeKit_private.res -O coff 
+
