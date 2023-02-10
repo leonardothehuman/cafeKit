@@ -3,6 +3,11 @@
 A utility that decrypts Wii U NUS content to save space on compression, then 
 reencrypt the content with 1:1 output from the original nus package
 
+Please, don't blindly trust 100% in this tool yet, please, after encrypting 
+a package, decrypt it and verify if the output is 100% equal the input with 
+tools like HashCheck Shell Extension or any other tool to check for duplicate
+files ...
+
 ### Details
 
 This is a fork of https://github.com/VitaSmith/cdecrypt, which is a fork of 
