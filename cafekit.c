@@ -242,6 +242,16 @@ static void hexdump(uint8_t* buf, size_t len)
     }
 }
 
+int endsWith(const char *str, const char *suffix){
+    if (!str || !suffix)
+        return 0;
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix > lenstr)
+        return 0;
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
+
 #define BLOCK_SIZE  0x10000
 static bool decrypt_entire_file_hash(FILE* src, uint64_t size, const char* destination, uint16_t content_id, const char* hashDestination){
     bool r = false; //To return error or success
@@ -862,6 +872,21 @@ out:
     free(enc);
     return r;
 }
+
+bool copyFileStrict(char * _src, char * _dest){
+    bool r = false;
+    if(is_directory(_dest)){
+        fprintf(stderr, "ERROR: '%s' is a directory\n", _src);
+        goto out;
+    }
+    if(is_file(_dest)){
+        fprintf(stderr, "ERROR: '%s' is a preexisting file\n", _src);
+        goto out;
+    }
+    r = copyFile(_src, _dest);
+out:
+    return r;
+}
 int main(int argc, char** argv){
     int r = EXIT_FAILURE; //Temporary store for the exit code
     
@@ -1193,7 +1218,7 @@ int main(int argc, char** argv){
                 if ((getbe16(&fe[i].Flags) & 0x440)) {//Determines if the extraction will be normal or hash
                     // if (!extract_file_hash(src, 0, cnt_offset, getbe32(&fe[i].FileLength), path, getbe16(&fe[i].ContentID)))
                     //     goto out;
-                    // printf("{{%s}}", name);
+                    // printf("{{%s}}\n", current_app);
                     llnb_attach_region(
                         llnb_add_BaseBlob_to_set(
                             current_app,
@@ -1248,6 +1273,66 @@ int main(int argc, char** argv){
             goto out;
         }
     }
+
+    
+    struct dirent *ent;
+    char unk_dst[PATH_MAX]; //The destination file
+    char unk_ndst[PATH_MAX]; //Destination file after adding the unknown file extension
+    char unk_cfk[PATH_MAX]; //Destination file after adding cafe kit file extension
+    char unk_src[PATH_MAX]; //The source file
+    DIR *d = opendir(argv[2]);
+    if (!d) {
+        fprintf(stderr, "ERROR: Could not open %s\n", path);
+        goto out;
+    }
+
+//sprintf(destination_directory, "%s%c", argv[3], PATH_SEP);
+    while ((ent = readdir(d))) {
+        if (!strcmp(ent->d_name, ".") || !(strcmp(ent->d_name, "..")))
+            continue;
+        if(is_directory(ent->d_name))
+            continue;
+
+        sprintf(unk_src, "%s%c%s", argv[2], PATH_SEP, ent->d_name);
+        sprintf(unk_dst, "%s%c%s", destination_directory, PATH_SEP, ent->d_name);
+        if(application_mode == DECRYPT){
+            sprintf(unk_ndst, "%s%c%s.cuk", destination_directory, PATH_SEP, ent->d_name);
+            sprintf(unk_cfk, "%s%c%s.cfk", destination_directory, PATH_SEP, ent->d_name);
+            
+            if(
+                (endsWith(ent->d_name, ".app") || endsWith(ent->d_name, ".APP")) &&
+                (!is_file(unk_cfk) && !is_file(unk_dst))
+            ){
+                if(copyFileStrict(unk_src, unk_ndst) == false){
+                    fprintf(stderr, "ERROR: could not copy the file %s\n", unk_src);
+                    goto out;
+                }
+                printf("Unknown file copy: %s\n", ent->d_name);
+            }
+
+            if(
+                (endsWith(ent->d_name, ".h3") || endsWith(ent->d_name, ".H3")) &&
+                !is_file(unk_dst)
+            ){
+                if(copyFileStrict(unk_src, unk_ndst) == false){
+                    fprintf(stderr, "ERROR: could not copy the file %s\n", unk_src);
+                    goto out;
+                }
+                printf("Unknown file copy: %s\n", ent->d_name);
+            }
+        }else{
+            if(endsWith(ent->d_name, ".cuk") || endsWith(ent->d_name, ".CUK")){
+                int len = strlen(unk_dst);
+                unk_dst[len - 4] = '\0';
+                if(copyFileStrict(unk_src, unk_dst) == false){
+                    fprintf(stderr, "ERROR: could not copy the file %s\n", unk_src);
+                    goto out;
+                }
+                printf("Unknown file copy: %s\n", ent->d_name);
+            }
+        }
+    }
+    closedir(d);
     
     printf("Copying file '%s'\n", tik_path);
     sprintf(tik_destination, "%s%ctitle.tik", destination_directory, PATH_SEP);
@@ -1273,6 +1358,7 @@ int main(int argc, char** argv){
     r = EXIT_SUCCESS;
 
 out:
+ //   llnb_print_BaseBlobSet(mainBlobSet);
     if(mainBlobSet != NULL)
         llnb_free_BaseBlobSet(&mainBlobSet);
     if(tmd != NULL)
@@ -1287,6 +1373,26 @@ out:
         free(tik_path);
     if (src != NULL)
         fclose(src);
+
+    if(r == EXIT_SUCCESS){
+        if(application_mode == DECRYPT){
+            printf("\nWup package has been succefuly decrypted.\n");
+            printf("\nPlease, don't blindly trust 100%% in this tool yet, you should reencrypt\n");
+            printf("the package and use a tool like HashCheck Shell Extension and a diff\n");
+            printf("checker to verify if the output matches the input before deleting\n");
+            printf("the original package\n");
+        }else{
+            printf("\nWup package has been succefuly encrypted.\n");
+        }
+    }else{
+        if(application_mode == DECRYPT){
+            fprintf(stderr, "\nERROR: IT WAS NOT POSSIBLE TO COMPLETE THE DECRYPTION\n");
+            fprintf(stderr, "OPERATION, DELETE THE OUTPUT DIRECTORY AND TRY AGAIN ...\n");
+        }else{
+            fprintf(stderr, "\nERROR: IT WAS NOT POSSIBLE TO COMPLETE THE ENCRYPTION\n");
+            fprintf(stderr, "OPERATION, DELETE THE OUTPUT DIRECTORY AND TRY AGAIN ...\n");
+        }
+    }
     return r;
 }
 
