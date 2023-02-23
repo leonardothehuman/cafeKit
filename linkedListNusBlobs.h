@@ -24,6 +24,7 @@ typedef struct BlobRegion{
     uint64_t cnt_offset;
     uint64_t length;
     uint16_t content_id;
+    uint32_t parent_id;
     enum RegionType type;
     struct BlobRegion * nextRegion;
 }BlobRegion;
@@ -33,6 +34,7 @@ typedef struct BaseBlob{
     char destination[PATH_MAX];
     uint64_t length;
     uint16_t content_id;
+    uint32_t parent_id;
     enum RegionType type;
     BlobRegion * firstRegion;
 }BaseBlob;
@@ -45,7 +47,7 @@ typedef struct BaseBlobSet{
 BaseBlob * llnb_new_BaseBlob(char * sourceFile, char* destination, uint64_t length);
 void llnb_attach_region(
     BaseBlob * baseb, BlobRegion * baser, uint64_t cnt_offset,
-    uint64_t length, uint16_t content_id, enum RegionType type
+    uint64_t length, uint16_t content_id, uint32_t parent_id, enum RegionType type
 );
 BaseBlob * llnb_add_BaseBlob_to_set(char * sourceFile, char * destination, uint64_t length, BaseBlobSet ** baseSet);
 

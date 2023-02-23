@@ -34,19 +34,19 @@ UnitCount=18
 [VersionInfo]
 Major=0
 Minor=1
-Release=0
-Build=34
+Release=1
+Build=72
 LanguageID=1033
 CharsetID=1252
 CompanyName=
-FileVersion=0.1.0.34
+FileVersion=0.1.1.72
 FileDescription=cafeKit - Decrypt Wii U NUS content to save space on compression, then reencrypt the content with 1:1 output from the original nus package
 InternalName=
 LegalCopyright=
 LegalTrademarks=
 OriginalFilename=
 ProductName=
-ProductVersion=0.1.0.34
+ProductVersion=0.1.1.72
 AutoIncBuildNr=1
 SyncProduct=1
 

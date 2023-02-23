@@ -9,8 +9,8 @@
 // TO CHANGE VERSION INFORMATION, EDIT PROJECT OPTIONS...
 //
 1 VERSIONINFO
-FILEVERSION 0,1,0,34
-PRODUCTVERSION 0,1,0,34
+FILEVERSION 0,1,1,72
+PRODUCTVERSION 0,1,1,72
 FILETYPE VFT_APP
 {
   BLOCK "StringFileInfo"
@@ -18,14 +18,14 @@ FILETYPE VFT_APP
     BLOCK "040904E4"
     {
       VALUE "CompanyName", ""
-      VALUE "FileVersion", "0.1.0.34"
+      VALUE "FileVersion", "0.1.1.72"
       VALUE "FileDescription", "cafeKit - Decrypt Wii U NUS content to save space on compression, then reencrypt the content with 1:1 output from the original nus package"
       VALUE "InternalName", ""
       VALUE "LegalCopyright", ""
       VALUE "LegalTrademarks", ""
       VALUE "OriginalFilename", ""
       VALUE "ProductName", ""
-      VALUE "ProductVersion", "0.1.0.34"
+      VALUE "ProductVersion", "0.1.1.72"
     }
   }
   BLOCK "VarFileInfo"

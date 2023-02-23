@@ -27,6 +27,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <windows.h>
+#include <tchar.h>
+#include <winnt.h>
+#include <fileapi.h>
+#include <sys/stat.h>
 
 #include "utf8.h"
 #include "util.h"
@@ -63,6 +68,7 @@ char destination_directory[PATH_MAX];
 const char* pattern_path[] = { "%s%c%08x.app", "%s%c%08X.app", "%s%c%08x", "%s%c%08X" };
 const char* pattern_h3[] = { "%s%c%08x.h3", "%s%c%08X.h3" };
 char * input_directory;
+bool warnh3 = false; //Flag to warn the user if an h3 file was not found
 
 enum ApplicationMode{
     ENCRYPT = 0x00,
@@ -719,27 +725,33 @@ bool decrypt_blob(BaseBlob * baseBlob, char * fst_path){
     // sprintf(fst_path, "game\\0000000a.app");
     if (strcmp(baseBlob->blobPath, fst_path) != 0) {//dont decrypt fst
         if(baseBlob->type == HASH){
+            // printf("H3: '%s' ", baseBlob->blobPath);
             for (uint32_t k = 0; k < array_size(pattern_h3); k++) {//Give up if the blob don't exist
-                sprintf(h3_source, pattern_h3[k], input_directory, PATH_SEP, baseBlob->content_id);
-                sprintf(h3_destination, pattern_h3[k], destination_directory, PATH_SEP, baseBlob->content_id);
+                sprintf(h3_source, pattern_h3[k], input_directory, PATH_SEP, baseBlob->parent_id);
+                sprintf(h3_destination, pattern_h3[k], destination_directory, PATH_SEP, baseBlob->parent_id);
                 if (is_file(h3_source))
                     break;
             }
-            printf("Copying file '%s'\n", h3_source);
-            if(is_file(h3_destination)){
-                fprintf(stderr, "ERROR: '%s' were supposed to be copied only once\n", h3_destination);
-                goto out;
+            if(is_file(h3_source)){
+                printf("Copying file '%s'\n", h3_source);
+                if(is_file(h3_destination)){
+                    fprintf(stderr, "ERROR: '%s' were supposed to be copied only once\n", h3_destination);
+                    goto out;
+                }
+                if (!copyFile(h3_source, h3_destination)){
+                    fprintf(stderr, "ERROR: Could not write: '%s'\n", h3_destination);
+                    goto out;
+                }
+                printf("Decrypting file '%s' ", baseBlob->blobPath);
+                src = fopen_utf8(baseBlob->blobPath, "rb");//Open the source blob
+                sprintf(path, "%s.cfk", baseBlob->destination);
+                sprintf(hpath, "%s.hfk", baseBlob->destination);
+                r = decrypt_entire_file_hash(src, baseBlob->length, path, baseBlob->content_id, hpath);
+            }else{
+                r = true;
+                warnh3 = true;
+                printf("WARNING: The file '%s' was not found\n", h3_source);
             }
-            if (!copyFile(h3_source, h3_destination)){
-                fprintf(stderr, "ERROR: Could not write: '%s'\n", h3_destination);
-                goto out;
-            }
-
-            printf("Decrypting file '%s' ", baseBlob->blobPath);
-            src = fopen_utf8(baseBlob->blobPath, "rb");//Open the source blob
-            sprintf(path, "%s.cfk", baseBlob->destination);
-            sprintf(hpath, "%s.hfk", baseBlob->destination);
-            r = decrypt_entire_file_hash(src, baseBlob->length, path, baseBlob->content_id, hpath);
         }else if(baseBlob->type == ENCRYPTED){
             printf("Decrypting file '%s' ", baseBlob->blobPath);
             src = fopen_utf8(baseBlob->blobPath, "rb");
@@ -771,27 +783,32 @@ bool encrypt_blob(BaseBlob * baseBlob, char * fst_path){
     if (strcmp(baseBlob->blobPath, fst_path) != 0) {
         if(baseBlob->type == HASH){
             for (uint32_t k = 0; k < array_size(pattern_h3); k++) {//Give up if the blob don't exist
-                sprintf(h3_source, pattern_h3[k], input_directory, PATH_SEP, baseBlob->content_id);
-                sprintf(h3_destination, pattern_h3[k], destination_directory, PATH_SEP, baseBlob->content_id);
+                sprintf(h3_source, pattern_h3[k], input_directory, PATH_SEP, baseBlob->parent_id);
+                sprintf(h3_destination, pattern_h3[k], destination_directory, PATH_SEP, baseBlob->parent_id);
                 if (is_file(h3_source))
                     break;
             }
-            printf("Copying file '%s'\n", h3_source);
-            if(is_file(h3_destination)){
-                fprintf(stderr, "ERROR: '%s' were supposed to be copied only once\n", h3_destination);
-                goto out;
+            if(is_file(h3_source)){
+                printf("Copying file '%s'\n", h3_source);
+                if(is_file(h3_destination)){
+                    fprintf(stderr, "ERROR: '%s' were supposed to be copied only once\n", h3_destination);
+                    goto out;
+                }
+                if (!copyFile(h3_source, h3_destination)){
+                    fprintf(stderr, "ERROR: Could not write: '%s'\n", h3_destination);
+                    goto out;
+                }
+                printf("Encrypting file '%s.cfk' ", baseBlob->blobPath);
+                sprintf(path, "%s.cfk", baseBlob->blobPath);
+                sprintf(hpath, "%s.hfk", baseBlob->blobPath);
+                src = fopen_utf8(path, "rb");//Open the source blob
+                hsrc = fopen_utf8(hpath, "rb");//Open the source hash blob
+                r = encrypt_entire_file_hash(src, hsrc, baseBlob->length, baseBlob->destination, baseBlob->content_id);            
+            }else{
+                r = true;
+                warnh3 = true;
+                printf("WARNING: The file '%s' was not found\n", h3_source);
             }
-            if (!copyFile(h3_source, h3_destination)){
-                fprintf(stderr, "ERROR: Could not write: '%s'\n", h3_destination);
-                goto out;
-            }
-
-            printf("Encrypting file '%s.cfk' ", baseBlob->blobPath);
-            sprintf(path, "%s.cfk", baseBlob->blobPath);
-            sprintf(hpath, "%s.hfk", baseBlob->blobPath);
-            src = fopen_utf8(path, "rb");//Open the source blob
-            hsrc = fopen_utf8(hpath, "rb");//Open the source hash blob
-            r = encrypt_entire_file_hash(src, hsrc, baseBlob->length, baseBlob->destination, baseBlob->content_id);            
         }else if(baseBlob->type == ENCRYPTED){
             printf("Encrypting file '%s.cfk' ", baseBlob->blobPath);
             sprintf(path, "%s.cfk", baseBlob->blobPath);
@@ -815,6 +832,8 @@ out:
 bool decrypt_all_blobs(BaseBlobSet * baseBlobSet, char * fst_path){
     BaseBlobSet * c = baseBlobSet;
     while(1){
+        // printf("{DD{%s}DD}\n", c->baseBlob->blobPath);
+        // llnb_print_BaseBlob(c->baseBlob);
         if(decrypt_blob(c->baseBlob, fst_path) == false){
             fprintf(stderr, "ERROR: The blob'%s' could not be decrypted\n", c->baseBlob->blobPath);
             return false;
@@ -1197,23 +1216,50 @@ int main(int argc, char** argv){
                         sprintf(current_app_cfk, "%s%s", current_app, ".cfk");
                         if (is_file(current_app_cfk))
                             break;
+                        sprintf(current_app_cfk, "%s%s", current_app, ".cuk");
+                        if (is_file(current_app_cfk))
+                            break;
                     }
                 }
+                LARGE_INTEGER fileSize;
+                HANDLE hFile;
                 if(application_mode == DECRYPT){
-                    src = fopen_utf8(current_app, "rb");//Open the source blob
-                    if (src == NULL) {
+                    hFile = CreateFile(
+                        _T(current_app), GENERIC_READ, FILE_SHARE_READ,
+                        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+                    );
+                    if (hFile == INVALID_HANDLE_VALUE) {
                         fprintf(stderr, "ERROR: Could not open: '%s'\n", current_app);
                         goto out;
                     }
+                    // st_success = stat(current_app, &st);
+                    // if (st_success != 0) {
+                    //     fprintf(stderr, "ERROR: Could not open: '%s'\n", current_app);
+                    //     goto out;
+                    // }
                 }else{
-                    src = fopen_utf8(current_app_cfk, "rb");//Open the source blob
-                    if (src == NULL) {
+                    hFile = CreateFile(
+                        _T(current_app_cfk), GENERIC_READ, FILE_SHARE_READ,
+                        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+                    );
+                    if (hFile == INVALID_HANDLE_VALUE) {
                         fprintf(stderr, "ERROR: Could not open: '%s'\n", current_app_cfk);
                         goto out;
                     }
+                    // st_success = stat(current_app_cfk, &st);
+                    // if (st_success != 0) {
+                    //     fprintf(stderr, "ERROR: Could not open: '%s'\n", current_app_cfk);
+                    //     goto out;
+                    // }
                 }
-                fseek(src, 0, SEEK_END); // seek to end of file
-                uint64_t current_app_size = ftell(src); // get current file pointer
+                if (!GetFileSizeEx(hFile, &fileSize)) {
+                    fprintf(stderr, "ERROR: Could not get the size of the file\n");
+                    CloseHandle(hFile);
+                    goto out;
+                }
+                // uint64_t current_app_size = (uint64_t)st.st_size; // get current file pointer
+                uint64_t current_app_size = fileSize.QuadPart; // get current file pointer
+                // printf("%s iis %" PRIu64"\n", current_app, current_app_size);
                 
                 if ((getbe16(&fe[i].Flags) & 0x440)) {//Determines if the extraction will be normal or hash
                     // if (!extract_file_hash(src, 0, cnt_offset, getbe32(&fe[i].FileLength), path, getbe16(&fe[i].ContentID)))
@@ -1230,11 +1276,13 @@ int main(int argc, char** argv){
                         cnt_offset,
                         getbe32(&fe[i].FileLength),
                         getbe16(&fe[i].ContentID),
+                        cnt_file_id,
                         HASH
                     );
                 } else {
                     // if (!extract_file(src, 0, cnt_offset, getbe32(&fe[i].FileLength), path, getbe16(&fe[i].ContentID)))
                     //     goto out;
+                    // printf("{{%s}}\n", current_app);
                     llnb_attach_region(
                         llnb_add_BaseBlob_to_set(
                             current_app,
@@ -1246,11 +1294,13 @@ int main(int argc, char** argv){
                         cnt_offset,
                         getbe32(&fe[i].FileLength),
                         getbe16(&fe[i].ContentID),
+                        cnt_file_id,
                         ENCRYPTED
                     );
                 }
-                fclose(src);
-                src = NULL;
+                CloseHandle(hFile);
+                // fclose(src);
+                // src = NULL;
             }else{
                 // printf("not");
             }
@@ -1383,6 +1433,13 @@ out:
             printf("the original package\n");
         }else{
             printf("\nWup package has been succefuly encrypted.\n");
+        }
+        if(warnh3 == true){
+            HANDLE hConsole;
+            hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+            printf("\nWARNING: Some h3 files has not been found\n");
+            SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         }
     }else{
         if(application_mode == DECRYPT){
